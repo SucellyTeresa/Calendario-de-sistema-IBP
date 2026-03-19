@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calendario IBP — Editor Completo</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #f7f6f2; --card: #ffffff; --card2: #f0efe9;
+  --text: #1e1d1a; --text2: #6b6a63; --text3: #9e9d96;
+  --border: rgba(0,0,0,0.09); --border2: rgba(0,0,0,0.18);
+  --accent: #2d5be3; --accent-light: #eef1fd;
+  --radius: 10px; --radius-sm: 6px;
+  --font: 'Segoe UI', system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #181816; --card: #222220; --card2: #2a2a27;
+    --text: #e8e6de; --text2: #9e9d96; --text3: #5f5e5a;
+    --border: rgba(255,255,255,0.08); --border2: rgba(255,255,255,0.16);
+    --accent: #5b7ff5; --accent-light: #1e2340;
+  }
+}
+body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
+.app { display: flex; min-height: 100vh; }
+
+/* SIDEBAR */
+.sidebar { width: 260px; background: var(--card); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+.sidebar-header { padding: 18px 16px 12px; border-bottom: 1px solid var(--border); }
+.sidebar-title { font-size: 14px; font-weight: 600; }
+.sidebar-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.area-list { padding: 8px; flex: 1; }
+.area-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: var(--radius-sm); cursor: pointer; transition: background .12s; margin-bottom: 2px; }
+.area-item:hover { background: var(--card2); }
+.area-item.sel { background: var(--accent-light); }
+.area-item.sel .aname { color: var(--accent); font-weight: 500; }
+.adot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.aname { font-size: 13px; flex: 1; }
+.btn-add { margin: 0 8px 8px; padding: 8px; border: 1.5px dashed var(--border2); border-radius: var(--radius-sm); background: transparent; width: calc(100% - 16px); cursor: pointer; font-size: 12px; color: var(--text2); font-family: var(--font); transition: all .15s; }
+.btn-add:hover { background: var(--card2); color: var(--text); }
+.sidebar-footer { padding: 10px 8px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
+.btn { padding: 8px 14px; border-radius: var(--radius-sm); font-size: 12px; font-family: var(--font); cursor: pointer; border: 1px solid var(--border2); background: var(--card2); color: var(--text); transition: all .15s; font-weight: 500; width: 100%; }
+.btn:hover { background: var(--card); }
+.btn-p { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-p:hover { opacity: .88; }
+.btn-d { color: #b93232; border-color: rgba(185,50,50,.25); background: rgba(185,50,50,.05); }
+.btn-d:hover { background: rgba(185,50,50,.12); }
+.btn-sm { padding: 5px 10px; font-size: 11px; width: auto; }
+
+/* MAIN */
+.main { flex: 1; padding: 26px 22px; overflow-x: hidden; min-width: 0; }
+.main-title { font-size: 21px; font-weight: 600; margin-bottom: 2px; outline: none; border: none; background: transparent; color: var(--text); font-family: var(--font); width: 100%; }
+.main-sub { font-size: 13px; color: var(--text2); margin-bottom: 22px; }
+
+/* TABS */
+.vtabs { display: flex; gap: 3px; background: var(--card2); padding: 3px; border-radius: var(--radius-sm); margin-bottom: 20px; width: fit-content; flex-wrap: wrap; }
+.vtab { padding: 6px 15px; border-radius: 5px; border: none; background: transparent; font-size: 13px; cursor: pointer; color: var(--text2); font-family: var(--font); transition: all .15s; }
+.vtab.active { background: var(--card); color: var(--text); font-weight: 500; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.view { display: none; }
+.view.active { display: block; }
+
+/* PANELS */
+.epanel { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); padding: 20px; margin-bottom: 16px; }
+.epanel h3 { font-size: 14px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+.sec-title { font-size: 13px; font-weight: 600; margin-bottom: 12px; color: var(--text2); text-transform: uppercase; letter-spacing: .04em; font-size: 11px; }
+.fgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; margin-bottom: 16px; }
+.fg { display: flex; flex-direction: column; gap: 4px; }
+.fg.full { grid-column: 1/-1; }
+label { font-size: 11px; font-weight: 500; color: var(--text2); text-transform: uppercase; letter-spacing: .04em; }
+input[type=text], textarea {
+  padding: 7px 10px; border: 1px solid var(--border2); border-radius: var(--radius-sm);
+  background: var(--bg); color: var(--text); font-size: 13px; font-family: var(--font);
+  outline: none; transition: border-color .15s; resize: vertical;
+}
+input[type=text]:focus, textarea:focus { border-color: var(--accent); }
+input[type=color] { width: 38px; height: 34px; border: 1px solid var(--border2); border-radius: var(--radius-sm); padding: 2px; cursor: pointer; background: var(--bg); }
+
+/* PHASE EDITOR */
+.phase-lbl { font-size: 11px; font-weight: 500; color: var(--text2); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 8px; }
+.phase-months { display: grid; grid-template-columns: repeat(12, minmax(0,1fr)); gap: 4px; }
+.pcell { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.pcell .mlbl { font-size: 9px; color: var(--text3); font-weight: 500; }
+.psel { width: 100%; padding: 3px 1px; border: 1px solid var(--border); border-radius: 4px; font-size: 9px; background: var(--bg); color: var(--text); cursor: pointer; font-family: var(--font); appearance: none; -webkit-appearance: none; text-align: center; }
+.pneg  { background: #CECBF6 !important; color: #26215C !important; border-color: #AFA9EC !important; }
+.pprep { background: #FAC775 !important; color: #412402 !important; border-color: #EF9F27 !important; }
+.pejec { background: #C0DD97 !important; color: #173404 !important; border-color: #97C459 !important; }
+.pseg  { background: #B5D4F4 !important; color: #042C53 !important; border-color: #85B7EB !important; }
+.pcier { background: #F4C0D1 !important; color: #4B1528 !important; border-color: #ED93B1 !important; }
+.ebtns { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+
+/* ROLES EDITOR */
+.role-editor-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 12px; }
+.role-editor-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.role-icon-preview { width: 30px; height: 30px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+.role-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.role-members { display: flex; flex-direction: column; gap: 6px; }
+.member-row { display: flex; align-items: center; gap: 6px; }
+.member-row input { flex: 1; }
+.btn-icon { width: 28px; height: 28px; border-radius: var(--radius-sm); border: 1px solid var(--border2); background: var(--card2); color: var(--text2); cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all .15s; font-family: var(--font); }
+.btn-icon:hover { background: var(--card); color: var(--text); }
+.btn-icon.del { color: #b93232; border-color: rgba(185,50,50,.2); }
+.btn-icon.del:hover { background: rgba(185,50,50,.1); }
+
+/* RULES EDITOR */
+.rule-editor-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 12px; }
+.rule-editor-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.rule-editor-head input { flex: 1; font-weight: 600; }
+.rule-steps-editor { display: flex; flex-direction: column; gap: 6px; }
+.step-row { display: flex; align-items: center; gap: 6px; }
+.step-num { font-size: 11px; font-weight: 600; color: var(--text3); width: 16px; flex-shrink: 0; text-align: right; }
+.step-row input { flex: 1; }
+
+/* TABLE */
+.tbl-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); background: var(--card); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { font-weight: 500; text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border2); color: var(--text2); white-space: nowrap; font-size: 12px; }
+td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--card2); }
+.badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+.b-neg{background:#EEEDFE;color:#3C3489}.b-prep{background:#FAEEDA;color:#412402}.b-ejec{background:#EAF3DE;color:#173404}.b-seg{background:#E6F1FB;color:#042C53}.b-cier{background:#FBEAF0;color:#4B1528}
+
+/* CALENDAR */
+.legend { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.leg-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text2); }
+.leg-sq { width: 11px; height: 11px; border-radius: 2px; flex-shrink: 0; }
+.cal-area { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px; }
+.atitle { font-size: 13px; font-weight: 500; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.mgrid { display: grid; grid-template-columns: repeat(12, minmax(0,1fr)); gap: 3px; }
+.mcell { border-radius: 5px; padding: 5px 3px; min-height: 52px; border: 1px solid var(--border); background: var(--bg); }
+.mlabel { font-size: 9px; color: var(--text3); margin-bottom: 3px; text-align: center; font-weight: 500; }
+.mtag { font-size: 9px; font-weight: 600; padding: 2px 3px; border-radius: 3px; line-height: 1.4; text-align: center; }
+.m-neg{background:#CECBF6;color:#26215C}.m-prep{background:#FAC775;color:#412402}.m-ejec{background:#C0DD97;color:#173404}.m-seg{background:#B5D4F4;color:#042C53}.m-cier{background:#F4C0D1;color:#4B1528}
+
+/* ROLES VIEW */
+.roles-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 12px; }
+.role-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+.role-head { font-size: 13px; font-weight: 600; margin-bottom: 10px; display: flex; align-items: flex-start; gap: 9px; }
+.role-icon { width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+.role-desc { font-size: 11px; color: var(--text2); font-weight: 400; margin-top: 2px; line-height: 1.4; }
+.role-list { list-style: none; }
+.role-list li { font-size: 12px; color: var(--text2); padding: 4px 0; border-bottom: 1px solid var(--border); display: flex; gap: 5px; line-height: 1.5; }
+.role-list li:last-child { border-bottom: none; }
+.role-list li::before { content: '—'; color: var(--text3); flex-shrink: 0; }
+
+/* RULES VIEW */
+.rules-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.rule-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+.rule-title { font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+.rule-steps { list-style: none; counter-reset: r; }
+.rule-steps li { counter-increment: r; font-size: 12px; color: var(--text2); padding: 4px 0 4px 20px; position: relative; line-height: 1.6; border-bottom: 1px solid var(--border); }
+.rule-steps li:last-child { border-bottom: none; }
+.rule-steps li::before { content: counter(r); position: absolute; left: 0; top: 5px; font-size: 10px; font-weight: 700; color: var(--text3); }
+
+/* TOAST */
+.toast { position: fixed; bottom: 22px; right: 22px; background: #1e1d1a; color: #fff; padding: 10px 18px; border-radius: var(--radius-sm); font-size: 13px; opacity: 0; transform: translateY(8px); transition: all .22s; pointer-events: none; z-index: 999; }
+.toast.show { opacity: 1; transform: translateY(0); }
+
+@media (max-width: 760px) {
+  .app { flex-direction: column; }
+  .sidebar { width: 100%; height: auto; position: static; border-right: none; border-bottom: 1px solid var(--border); }
+  .area-list { display: flex; flex-wrap: wrap; gap: 4px; }
+  .area-item { margin-bottom: 0; }
+  .fgrid, .role-fields, .rules-col { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">Calendario IBP</div>
+      <div class="sidebar-sub">Editor completo</div>
+    </div>
+    <div class="area-list" id="area-list"></div>
+    <button class="btn-add" onclick="addArea()">+ Agregar área</button>
+    <div class="sidebar-footer">
+      <button class="btn btn-p" onclick="exportHTML()">Exportar index.html</button>
+      <button class="btn" onclick="saveLocal()">Guardar en navegador</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <input class="main-title" id="page-title" type="text" value="Calendario IBP por Áreas">
+    <div class="main-sub">Negociaciones y seguimiento de compras — Integrated Business Planning</div>
+
+    <div class="vtabs">
+      <button class="vtab active" onclick="sv('matrix',this)">Matriz</button>
+      <button class="vtab" onclick="sv('calendar',this)">Calendario</button>
+      <button class="vtab" onclick="sv('editor',this)">Editor de área</button>
+      <button class="vtab" onclick="sv('roles',this)">Roles</button>
+      <button class="vtab" onclick="sv('roles-ed',this)">Editar roles</button>
+      <button class="vtab" onclick="sv('rules',this)">Reglas IBP</button>
+      <button class="vtab" onclick="sv('rules-ed',this)">Editar reglas</button>
+    </div>
+
+    <div id="view-matrix"   class="view active"></div>
+    <div id="view-calendar" class="view"></div>
+    <div id="view-editor"   class="view"></div>
+    <div id="view-roles"    class="view"></div>
+    <div id="view-roles-ed" class="view"></div>
+    <div id="view-rules"    class="view"></div>
+    <div id="view-rules-ed" class="view"></div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const MO = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const PL = {neg:'Negoc.',prep:'Prep.',ejec:'Ejec.',seg:'Seg.',cier:'Cierre'};
+const PC = {neg:'m-neg',prep:'m-prep',ejec:'m-ejec',seg:'m-seg',cier:'m-cier'};
+const BC = {neg:'b-neg',prep:'b-prep',ejec:'b-ejec',seg:'b-seg',cier:'b-cier'};
+const FL = {neg:'Negociación',prep:'Preparación',ejec:'Ejecución',seg:'Seguimiento',cier:'Cierre'};
+const POPTS = [{v:'neg',l:'Negoc.'},{v:'prep',l:'Prep.'},{v:'ejec',l:'Ejec.'},{v:'seg',l:'Seg.'},{v:'cier',l:'Cierre'}];
+const COLS = ['#534AB7','#0F6E56','#BA7517','#993C1D','#185FA5','#993556','#2d5be3','#6b3fa0'];
+
+const DEF_AREAS = [
+  {id:1,name:'Fábrica',color:'#534AB7',evento:'Producción continua / zafra',ejecucion:'Jul–Dic',negociacion:'Mar–Abr',leadTime:'3 meses',insumo:'Materias primas, empaques',fases:['prep','prep','neg','neg','prep','ejec','ejec','ejec','ejec','seg','seg','cier']},
+  {id:2,name:'Agrícola',color:'#0F6E56',evento:'Aplicación / cosecha (noviembre)',ejecucion:'Nov–Ene',negociacion:'Ago',leadTime:'3 meses',insumo:'Agroquímicos, fertilizantes',fases:['seg','cier','prep','prep','prep','prep','prep','neg','neg','prep','ejec','ejec']},
+  {id:3,name:'Taller',color:'#BA7517',evento:'Reparación / mantenimiento (mayo)',ejecucion:'May–Jun',negociacion:'Feb',leadTime:'3 meses',insumo:'Repuestos, lubricantes, herramientas',fases:['prep','neg','prep','prep','ejec','ejec','seg','seg','cier','prep','prep','prep']},
+  {id:4,name:'Laboratorio',color:'#993C1D',evento:'Análisis de calidad (continuo)',ejecucion:'Todo el año',negociacion:'Ene',leadTime:'2 meses',insumo:'Reactivos, equipos de medición',fases:['neg','prep','ejec','ejec','ejec','seg','seg','cier','neg','prep','ejec','ejec']},
+  {id:5,name:'Soporte',color:'#185FA5',evento:'Renovación contratos (octubre)',ejecucion:'Oct–Nov',negociacion:'Jul',leadTime:'3 meses',insumo:'Servicios, TI, limpieza, seguridad',fases:['prep','prep','prep','prep','prep','prep','neg','prep','prep','ejec','ejec','seg']},
+  {id:6,name:'Proyectos',color:'#993556',evento:'Inicio proyectos (abril)',ejecucion:'Abr–Sep',negociacion:'Ene',leadTime:'3 meses',insumo:'Equipos, ingeniería, construcción',fases:['neg','prep','prep','ejec','ejec','ejec','ejec','ejec','seg','cier','prep','prep']}
+];
+
+const DEF_ROLES = [
+  {tipo:'Planeación',color:'#FAEEDA',tc:'#412402',desc:'Definir necesidades anuales y presupuesto',roles:['Gerente de área (dueño del evento)','Planeación y control (IBP)','Finanzas (presupuesto)','Compras (estrategia)']},
+  {tipo:'Negociación',color:'#EEEDFE',tc:'#26215C',desc:'Cierre de condiciones con proveedores',roles:['Compras / Procurement','Gerente del área solicitante','Legal (contratos)','Dirección (negociaciones clave)']},
+  {tipo:'Seguimiento',color:'#E6F1FB',tc:'#042C53',desc:'Verificar cumplimiento, entregas y KPIs',roles:['Compras (ejecutor)','Área operativa (receptor)','Almacén / Logística','Planeación IBP (control)']},
+  {tipo:'Cierre',color:'#FBEAF0',tc:'#4B1528',desc:'Evaluación de proveedores y lecciones',roles:['Gerente de área','Compras','Finanzas (liquidación)','Calidad (evaluación proveedor)']}
+];
+
+const DEF_RULES = [
+  {title:'Cómo calcular la anticipación (lead time)',steps:['Identificar el mes de ejecución del evento crítico del área.','Restar el lead time de compra (mínimo 3 meses; reactivos: 2 meses).','El resultado es el mes de inicio de negociación.','Agregar 1 mes previo de preparación y revisión presupuestal.','Validar dependencias entre áreas antes de fijar fechas.']},
+  {title:'Cómo definir el tipo de reunión por mes',steps:['Mes N-4 a N-3: Planeación — revisión de necesidades y presupuesto.','Mes N-3 a N-2: Negociación — RFQ, evaluación, cierre comercial.','Mes N-1: Preparación — órdenes de compra y confirmación de entregas.','Mes N (ejecución): Seguimiento operativo semanal.','Mes N+1 a N+2: Cierre — liquidación y evaluación de proveedor.']},
+  {title:'Cómo adaptar el modelo a una nueva área',steps:['Definir el evento crítico del área (zafra, reparación, proyecto, etc.).','Establecer el mes de ejecución y duración del evento.','Clasificar insumos: estratégicos (lead time largo) vs. tácticos.','Calcular retroceso según lead time por categoría de insumo.','Asignar participantes según nivel de gasto e impacto operativo.']},
+  {title:'Reglas generales del modelo IBP',steps:['Ninguna negociación inicia sin presupuesto aprobado.','Toda negociación >3 meses de duración requiere contrato formal.','Los seguimientos mensuales son obligatorios durante ejecución.','La evaluación de proveedores cierra cada ciclo antes de re-negociar.','El calendario se revisa en enero de cada año con todas las áreas.']}
+];
+
+const saved = JSON.parse(localStorage.getItem('ibp_data')||'null');
+let areas = saved ? saved.areas : DEF_AREAS.map(a=>({...a,fases:[...a.fases]}));
+let roles = saved ? saved.roles : DEF_ROLES.map(r=>({...r,roles:[...r.roles]}));
+let rules = saved ? saved.rules : DEF_RULES.map(r=>({...r,steps:[...r.steps]}));
+let nid = Math.max(...areas.map(a=>a.id))+1;
+let sid = areas[0].id;
+
+// ── SIDEBAR ──
+function rSidebar() {
+  const el = document.getElementById('area-list');
+  el.innerHTML = '';
+  areas.forEach(a=>{
+    const d = document.createElement('div');
+    d.className='area-item'+(a.id===sid?' sel':'');
+    d.innerHTML=`<span class="adot" style="background:${a.color}"></span><span class="aname">${a.name}</span>`;
+    d.onclick=()=>{sid=a.id;rSidebar();if(document.getElementById('view-editor').classList.contains('active'))rEditor();};
+    el.appendChild(d);
+  });
+}
+
+// ── VIEWS ──
+function sv(name, btn) {
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.vtab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  if(btn) btn.classList.add('active');
+  const map = {matrix:rMatrix,calendar:rCalendar,editor:rEditor,roles:rRoles,'roles-ed':rRolesEd,rules:rRules,'rules-ed':rRulesEd};
+  if(map[name]) map[name]();
+}
+
+// ── MATRIX ──
+function rMatrix() {
+  document.getElementById('view-matrix').innerHTML=`<div class="tbl-wrap"><table>
+    <thead><tr><th>Área</th><th>Evento principal</th><th>Mes ejecución</th><th>Mes negociación</th><th>Lead time</th><th>Tipo de insumo</th><th>Fase crítica</th></tr></thead>
+    <tbody>${areas.map(a=>{
+      const cnt={};a.fases.forEach(f=>cnt[f]=(cnt[f]||0)+1);
+      const cr=Object.entries(cnt).sort((x,y)=>y[1]-x[1])[0][0];
+      return`<tr>
+        <td><span style="display:flex;align-items:center;gap:7px"><span style="width:9px;height:9px;border-radius:50%;background:${a.color};flex-shrink:0;display:inline-block"></span><strong style="font-weight:500">${a.name}</strong></span></td>
+        <td style="color:var(--text2)">${a.evento}</td><td>${a.ejecucion}</td>
+        <td><strong style="font-weight:500">${a.negociacion}</strong></td>
+        <td style="white-space:nowrap">${a.leadTime}</td>
+        <td style="color:var(--text2);font-size:12px">${a.insumo}</td>
+        <td><span class="badge ${BC[cr]}">${FL[cr]}</span></td></tr>`;
+    }).join('')}</tbody></table></div>`;
+}
+
+// ── CALENDAR ──
+function rCalendar() {
+  document.getElementById('view-calendar').innerHTML=`<div class="legend">
+    <div class="leg-item"><div class="leg-sq" style="background:#CECBF6"></div>Negociación</div>
+    <div class="leg-item"><div class="leg-sq" style="background:#FAC775"></div>Preparación</div>
+    <div class="leg-item"><div class="leg-sq" style="background:#C0DD97"></div>Ejecución</div>
+    <div class="leg-item"><div class="leg-sq" style="background:#B5D4F4"></div>Seguimiento</div>
+    <div class="leg-item"><div class="leg-sq" style="background:#F4C0D1"></div>Cierre</div>
+  </div>`+areas.map(a=>`<div class="cal-area">
+    <div class="atitle"><span style="width:9px;height:9px;border-radius:50%;background:${a.color};flex-shrink:0;display:inline-block"></span>
+    <span>${a.name}</span><span style="font-size:11px;color:var(--text3);font-weight:400">${a.evento}</span></div>
+    <div class="mgrid">${a.fases.map((f,i)=>`<div class="mcell"><div class="mlabel">${MO[i]}</div><div class="mtag ${PC[f]}">${PL[f]}</div></div>`).join('')}</div>
+  </div>`).join('');
+}
+
+// ── AREA EDITOR ──
+function rEditor() {
+  const a=areas.find(x=>x.id===sid); if(!a) return;
+  document.getElementById('view-editor').innerHTML=`<div class="epanel">
+    <h3><span style="width:12px;height:12px;border-radius:50%;background:${a.color};display:inline-block"></span>Editando: ${a.name}</h3>
+    <div class="fgrid">
+      <div class="fg"><label>Nombre del área</label><input type="text" value="${a.name}" oninput="uf('name',this.value)"></div>
+      <div class="fg" style="flex-direction:row;align-items:flex-end;gap:8px"><div><label>Color</label><input type="color" value="${a.color}" oninput="uf('color',this.value)"></div></div>
+      <div class="fg full"><label>Evento principal</label><input type="text" value="${a.evento}" oninput="uf('evento',this.value)"></div>
+      <div class="fg"><label>Mes(es) de ejecución</label><input type="text" value="${a.ejecucion}" oninput="uf('ejecucion',this.value)"></div>
+      <div class="fg"><label>Mes(es) de negociación</label><input type="text" value="${a.negociacion}" oninput="uf('negociacion',this.value)"></div>
+      <div class="fg"><label>Lead time de compra</label><input type="text" value="${a.leadTime}" oninput="uf('leadTime',this.value)"></div>
+      <div class="fg"><label>Tipo de insumo</label><input type="text" value="${a.insumo}" oninput="uf('insumo',this.value)"></div>
+    </div>
+    <div class="phase-lbl">Fase por mes</div>
+    <div class="phase-months">${a.fases.map((f,i)=>`
+      <div class="pcell"><span class="mlbl">${MO[i]}</span>
+        <select class="psel p${f}" id="ps${i}" onchange="up(${i},this.value)">
+          ${POPTS.map(o=>`<option value="${o.v}"${f===o.v?' selected':''}>${o.l}</option>`).join('')}
+        </select></div>`).join('')}
+    </div>
+    <div class="ebtns">
+      <button class="btn btn-p" onclick="toast('Cambios aplicados')">Aplicar cambios</button>
+      <button class="btn btn-d" onclick="delArea(${a.id})">Eliminar área</button>
+    </div>
+  </div>`;
+}
+function uf(f,v){const a=areas.find(x=>x.id===sid);if(a){a[f]=v;rSidebar();}}
+function up(i,v){const a=areas.find(x=>x.id===sid);if(a){a.fases[i]=v;const s=document.getElementById('ps'+i);s.className='psel p'+v;}}
+function addArea(){
+  const c=COLS[nid%COLS.length];
+  areas.push({id:nid++,name:'Nueva área',color:c,evento:'Evento principal',ejecucion:'Ene',negociacion:'Oct',leadTime:'3 meses',insumo:'Tipo de insumo',fases:Array(12).fill('prep')});
+  sid=areas[areas.length-1].id; rSidebar();
+  sv('editor',document.querySelectorAll('.vtab')[2]);
+  toast('Área agregada — edita los datos');
+}
+function delArea(id){
+  if(areas.length<=1){toast('Debe haber al menos un área');return;}
+  if(!confirm('¿Eliminar esta área?'))return;
+  areas=areas.filter(a=>a.id!==id);sid=areas[0].id;rSidebar();rEditor();toast('Área eliminada');
+}
+
+// ── ROLES VIEW ──
+function rRoles() {
+  document.getElementById('view-roles').innerHTML='<div class="roles-grid">'+roles.map(r=>`<div class="role-card">
+    <div class="role-head"><div class="role-icon" style="background:${r.color};color:${r.tc}">${r.tipo[0]}</div>
+    <div><div>${r.tipo}</div><div class="role-desc">${r.desc}</div></div></div>
+    <ul class="role-list">${r.roles.map(x=>`<li>${x}</li>`).join('')}</ul></div>`).join('')+'</div>';
+}
+
+// ── ROLES EDITOR ──
+function rRolesEd() {
+  const c = document.getElementById('view-roles-ed');
+  c.innerHTML = '<div class="sec-title">Editar tipos de reunión y participantes</div>' +
+    roles.map((r,ri)=>`<div class="role-editor-card">
+      <div class="role-editor-head">
+        <div class="role-icon-preview" style="background:${r.color};color:${r.tc}">${r.tipo[0]}</div>
+        <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div class="fg"><label>Tipo de reunión</label><input type="text" value="${r.tipo}" oninput="roles[${ri}].tipo=this.value"></div>
+          <div class="fg"><label>Descripción</label><input type="text" value="${r.desc}" oninput="roles[${ri}].desc=this.value"></div>
+        </div>
+      </div>
+      <div class="fg" style="margin-bottom:10px"><label>Participantes</label></div>
+      <div class="role-members" id="rm-${ri}">
+        ${r.roles.map((m,mi)=>`<div class="member-row">
+          <input type="text" value="${m}" oninput="roles[${ri}].roles[${mi}]=this.value">
+          <button class="btn-icon del" onclick="delMember(${ri},${mi})" title="Eliminar">×</button>
+        </div>`).join('')}
+      </div>
+      <button class="btn btn-sm" style="margin-top:8px" onclick="addMember(${ri})">+ Agregar participante</button>
+    </div>`).join('') +
+    '<button class="btn btn-p" style="margin-top:4px" onclick="rRoles();toast(\'Roles actualizados\')">Aplicar cambios en Roles</button>';
+}
+function addMember(ri){roles[ri].roles.push('Nuevo participante');rRolesEd();}
+function delMember(ri,mi){if(roles[ri].roles.length<=1){toast('Mínimo un participante');return;}roles[ri].roles.splice(mi,1);rRolesEd();}
+
+// ── RULES VIEW ──
+function rRules() {
+  document.getElementById('view-rules').innerHTML='<div class="rules-col">'+rules.map(r=>`<div class="rule-card">
+    <div class="rule-title">${r.title}</div>
+    <ol class="rule-steps">${r.steps.map(s=>`<li>${s}</li>`).join('')}</ol></div>`).join('')+'</div>';
+}
+
+// ── RULES EDITOR ──
+function rRulesEd() {
+  const c = document.getElementById('view-rules-ed');
+  c.innerHTML = '<div class="sec-title">Editar reglas y pasos IBP</div>' +
+    rules.map((r,ri)=>`<div class="rule-editor-card">
+      <div class="rule-editor-head">
+        <input type="text" value="${r.title}" oninput="rules[${ri}].title=this.value" style="font-weight:600">
+      </div>
+      <div class="fg" style="margin-bottom:8px"><label>Pasos</label></div>
+      <div class="rule-steps-editor" id="rs-${ri}">
+        ${r.steps.map((s,si)=>`<div class="step-row">
+          <span class="step-num">${si+1}</span>
+          <input type="text" value="${s}" oninput="rules[${ri}].steps[${si}]=this.value">
+          <button class="btn-icon del" onclick="delStep(${ri},${si})" title="Eliminar">×</button>
+        </div>`).join('')}
+      </div>
+      <button class="btn btn-sm" style="margin-top:8px" onclick="addStep(${ri})">+ Agregar paso</button>
+    </div>`).join('') +
+    '<button class="btn btn-p" style="margin-top:4px" onclick="rRules();toast(\'Reglas actualizadas\')">Aplicar cambios en Reglas</button>';
+}
+function addStep(ri){rules[ri].steps.push('Nuevo paso');rRulesEd();}
+function delStep(ri,si){if(rules[ri].steps.length<=1){toast('Mínimo un paso');return;}rules[ri].steps.splice(si,1);rRulesEd();}
+
+// ── SAVE / EXPORT ──
+function saveLocal(){
+  localStorage.setItem('ibp_data',JSON.stringify({areas,roles,rules}));
+  toast('Guardado en este navegador');
+}
+
+function exportHTML(){
+  const title = document.getElementById('page-title').value;
+  const aj=JSON.stringify(areas), rj=JSON.stringify(roles), uj=JSON.stringify(rules);
+  const html=buildExport(title,aj,rj,uj);
+  const blob=new Blob([html],{type:'text/html'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='index.html';a.click();
+  toast('index.html descargado — sube a GitHub');
+}
+
+function buildExport(title,aj,rj,uj){return`<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>${title}</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#f7f6f2;--card:#fff;--card2:#f0efe9;--text:#1e1d1a;--text2:#6b6a63;--text3:#9e9d96;--border:rgba(0,0,0,.09);--border2:rgba(0,0,0,.18);--radius:10px;--radius-sm:6px;--font:'Segoe UI',system-ui,sans-serif}
+@media(prefers-color-scheme:dark){:root{--bg:#181816;--card:#222220;--card2:#2a2a27;--text:#e8e6de;--text2:#9e9d96;--text3:#5f5e5a;--border:rgba(255,255,255,.08);--border2:rgba(255,255,255,.16)}}
+body{font-family:var(--font);background:var(--bg);color:var(--text);padding:24px 16px}
+.wrap{max-width:1100px;margin:0 auto}
+h1{font-size:20px;font-weight:600;margin-bottom:3px}.sub{font-size:13px;color:var(--text2);margin-bottom:22px}
+.vtabs{display:flex;gap:3px;background:var(--card2);padding:3px;border-radius:var(--radius-sm);margin-bottom:20px;width:fit-content;flex-wrap:wrap}
+.vtab{padding:6px 15px;border-radius:5px;border:none;background:transparent;font-size:13px;cursor:pointer;color:var(--text2);font-family:var(--font);transition:all .15s}
+.vtab.active{background:var(--card);color:var(--text);font-weight:500}
+.view{display:none}.view.active{display:block}
+.tbl-wrap{overflow-x:auto;border-radius:var(--radius);border:1px solid var(--border);background:var(--card)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{font-weight:500;text-align:left;padding:10px 12px;border-bottom:1px solid var(--border2);color:var(--text2);white-space:nowrap;font-size:12px}
+td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}tr:hover td{background:var(--card2)}
+.badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:500}
+.b-neg{background:#EEEDFE;color:#3C3489}.b-prep{background:#FAEEDA;color:#412402}.b-ejec{background:#EAF3DE;color:#173404}.b-seg{background:#E6F1FB;color:#042C53}.b-cier{background:#FBEAF0;color:#4B1528}
+.legend{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2)}
+.leg-sq{width:11px;height:11px;border-radius:2px}
+.cal-area{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px}
+.atitle{font-size:13px;font-weight:500;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.mgrid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:3px}
+.mcell{border-radius:5px;padding:5px 3px;min-height:52px;border:1px solid var(--border);background:var(--bg)}
+.mlabel{font-size:9px;color:var(--text3);margin-bottom:3px;text-align:center;font-weight:500}
+.mtag{font-size:9px;font-weight:600;padding:2px 3px;border-radius:3px;line-height:1.4;text-align:center}
+.m-neg{background:#CECBF6;color:#26215C}.m-prep{background:#FAC775;color:#412402}.m-ejec{background:#C0DD97;color:#173404}.m-seg{background:#B5D4F4;color:#042C53}.m-cier{background:#F4C0D1;color:#4B1528}
+.roles-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.role-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.role-head{font-size:13px;font-weight:600;margin-bottom:10px;display:flex;align-items:flex-start;gap:9px}
+.role-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
+.role-desc{font-size:11px;color:var(--text2);font-weight:400;margin-top:2px;line-height:1.4}
+.role-list{list-style:none}
+.role-list li{font-size:12px;color:var(--text2);padding:4px 0;border-bottom:1px solid var(--border);display:flex;gap:5px;line-height:1.5}
+.role-list li:last-child{border-bottom:none}
+.role-list li::before{content:'—';color:var(--text3);flex-shrink:0}
+.rules-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:580px){.rules-col{grid-template-columns:1fr}}
+.rule-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.rule-title{font-size:13px;font-weight:600;margin-bottom:10px}
+.rule-steps{list-style:none;counter-reset:r}
+.rule-steps li{counter-increment:r;font-size:12px;color:var(--text2);padding:4px 0 4px 20px;position:relative;line-height:1.6;border-bottom:1px solid var(--border)}
+.rule-steps li:last-child{border-bottom:none}
+.rule-steps li::before{content:counter(r);position:absolute;left:0;top:5px;font-size:10px;font-weight:700;color:var(--text3)}
+</style></head><body>
+<div class="wrap">
+<h1>${title}</h1>
+<p class="sub">Negociaciones y seguimiento de compras — Integrated Business Planning</p>
+<div class="vtabs">
+  <button class="vtab active" onclick="sv('m',this)">Matriz</button>
+  <button class="vtab" onclick="sv('c',this)">Calendario</button>
+  <button class="vtab" onclick="sv('r',this)">Roles</button>
+  <button class="vtab" onclick="sv('u',this)">Reglas IBP</button>
+</div>
+<div id="vm" class="view active"></div>
+<div id="vc" class="view"></div>
+<div id="vr" class="view"></div>
+<div id="vu" class="view"></div>
+</div>
+<script>
+const MO=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const PL={neg:'Negoc.',prep:'Prep.',ejec:'Ejec.',seg:'Seg.',cier:'Cierre'};
+const PC={neg:'m-neg',prep:'m-prep',ejec:'m-ejec',seg:'m-seg',cier:'m-cier'};
+const BC={neg:'b-neg',prep:'b-prep',ejec:'b-ejec',seg:'b-seg',cier:'b-cier'};
+const FL={neg:'Negociación',prep:'Preparación',ejec:'Ejecución',seg:'Seguimiento',cier:'Cierre'};
+const areas=${aj};const roles=${rj};const rules=${uj};
+function sv(id,btn){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.querySelectorAll('.vtab').forEach(t=>t.classList.remove('active'));document.getElementById('v'+id).classList.add('active');btn.classList.add('active');({m:rm,c:rc,r:rr,u:ru})[id]();}
+function rm(){document.getElementById('vm').innerHTML='<div class="tbl-wrap"><table><thead><tr><th>Área</th><th>Evento</th><th>Ejecución</th><th>Negociación</th><th>Lead time</th><th>Insumo</th><th>Fase clave</th></tr></thead><tbody>'+areas.map(a=>{const c={};a.fases.forEach(f=>c[f]=(c[f]||0)+1);const cr=Object.entries(c).sort((x,y)=>y[1]-x[1])[0][0];return'<tr><td><span style="display:flex;align-items:center;gap:7px"><span style="width:9px;height:9px;border-radius:50%;background:'+a.color+';flex-shrink:0;display:inline-block"></span><strong style="font-weight:500">'+a.name+'</strong></span></td><td style="color:var(--text2)">'+a.evento+'</td><td>'+a.ejecucion+'</td><td><strong style="font-weight:500">'+a.negociacion+'</strong></td><td>'+a.leadTime+'</td><td style="color:var(--text2);font-size:12px">'+a.insumo+'</td><td><span class="badge '+BC[cr]+'">'+FL[cr]+'</span></td></tr>';}).join('')+'</tbody></table></div>';}
+function rc(){document.getElementById('vc').innerHTML='<div class="legend"><div class="leg-item"><div class="leg-sq" style="background:#CECBF6"></div>Negociación</div><div class="leg-item"><div class="leg-sq" style="background:#FAC775"></div>Preparación</div><div class="leg-item"><div class="leg-sq" style="background:#C0DD97"></div>Ejecución</div><div class="leg-item"><div class="leg-sq" style="background:#B5D4F4"></div>Seguimiento</div><div class="leg-item"><div class="leg-sq" style="background:#F4C0D1"></div>Cierre</div></div>'+areas.map(a=>'<div class="cal-area"><div class="atitle"><span style="width:9px;height:9px;border-radius:50%;background:'+a.color+';flex-shrink:0;display:inline-block"></span><span>'+a.name+'</span><span style="font-size:11px;color:var(--text3);font-weight:400">'+a.evento+'</span></div><div class="mgrid">'+a.fases.map((f,i)=>'<div class="mcell"><div class="mlabel">'+MO[i]+'</div><div class="mtag '+PC[f]+'">'+PL[f]+'</div></div>').join('')+'</div></div>').join('');}
+function rr(){document.getElementById('vr').innerHTML='<div class="roles-grid">'+roles.map(r=>'<div class="role-card"><div class="role-head"><div class="role-icon" style="background:'+r.color+';color:'+r.tc+'">'+r.tipo[0]+'</div><div><div>'+r.tipo+'</div><div class="role-desc">'+r.desc+'</div></div></div><ul class="role-list">'+r.roles.map(x=>'<li>'+x+'</li>').join('')+'</ul></div>').join('')+'</div>';}
+function ru(){document.getElementById('vu').innerHTML='<div class="rules-col">'+rules.map(r=>'<div class="rule-card"><div class="rule-title">'+r.title+'</div><ol class="rule-steps">'+r.steps.map(s=>'<li>'+s+'</li>').join('')+'</ol></div>').join('')+'</div>';}
+rm();
+<\/script></body></html>`;}
+
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2400);}
+
+rSidebar(); rMatrix();
+</script>
+</body>
+</html>
